@@ -3,7 +3,6 @@ package com.david.github.activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
@@ -17,7 +16,7 @@ import android.widget.ProgressBar;
 import com.david.github.R;
 import com.david.github.adapter.DataAdapter;
 import com.david.github.models.FiveHundResponse;
-import com.david.github.services.Api;
+import com.david.github.services.RestClient;
 import com.david.github.utils.Constants;
 import com.david.github.utils.Utils;
 import com.nhaarman.listviewanimations.appearance.simple.SwingBottomInAnimationAdapter;
@@ -29,7 +28,6 @@ import com.nispok.snackbar.listeners.ActionClickListener;
 import butterknife.Bind;
 import butterknife.ButterKnife;
 import retrofit.Callback;
-import retrofit.RestAdapter;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
 
@@ -41,8 +39,6 @@ public class MainActivity extends BaseActivity {
     private Context mContext;
     private DataAdapter dataAdapter;
     private SwingBottomInAnimationAdapter animatorAdapter;
-    RestAdapter restAdapter;
-    private Api api;
 
     @Bind(R.id.main_data_list)
     ListView mainDataList;
@@ -60,11 +56,6 @@ public class MainActivity extends BaseActivity {
         ButterKnife.bind(this);
 
         mContext = this;
-
-        restAdapter = new RestAdapter.Builder()
-                .setEndpoint(Constants.BASE_URL)
-                .build();
-        api = restAdapter.create(Api.class);
 
         swipeRefreshLayout.setColorSchemeResources(
                 R.color.primary,
@@ -91,6 +82,8 @@ public class MainActivity extends BaseActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if (id == R.id.action_reload) {
+
+            //clears stack, reloads app
             Intent i = getBaseContext().getPackageManager()
                     .getLaunchIntentForPackage(getBaseContext().getPackageName());
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -106,45 +99,34 @@ public class MainActivity extends BaseActivity {
         //could run updates here if needed for fresher data
     }
 
-    @Override
-    public void onBackPressed(){
-        super.onBackPressed();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            finishAfterTransition();
-        }else{
-            finish();
-        }
-    }
-
     private void runDataCheck(){
         //basic network check first
         if(Utils.isNetworkConnectionAvailable(mContext)) {
             mainListImage.setVisibility(View.GONE);
             loading.setVisibility(View.VISIBLE);
 
-            api.getData(new Callback<FiveHundResponse>() {
-                @Override
-                public void success(FiveHundResponse dataModels, Response response) {
-                    loading.setVisibility(View.GONE);
-                    swipeRefreshLayout.setRefreshing(false);
+            RestClient.get().getData(new Callback<FiveHundResponse>() {
+               @Override
+               public void success(FiveHundResponse dataModels, Response response) {
+                   loading.setVisibility(View.GONE);
+                   swipeRefreshLayout.setRefreshing(false);
 
+                   dataAdapter = new DataAdapter(mContext, dataModels.photos, MainActivity.this);
+                   animatorAdapter = new SwingBottomInAnimationAdapter(dataAdapter);
+                   animatorAdapter.setAbsListView(mainDataList);
+                   mainDataList.setAdapter(animatorAdapter);
+               }
 
-                    dataAdapter = new DataAdapter(mContext, dataModels.photos, MainActivity.this);
-                    animatorAdapter = new SwingBottomInAnimationAdapter(dataAdapter);
-                    animatorAdapter.setAbsListView(mainDataList);
-                    mainDataList.setAdapter(animatorAdapter);
-                }
-
-                @Override
-                public void failure(RetrofitError error) {
-                    Log.e(Constants.TAG, error.toString());
-                    loading.setVisibility(View.GONE);
-                    swipeRefreshLayout.setRefreshing(false);
-                    mainListImage.setVisibility(View.VISIBLE);
-                    //show a snack error
-                    showErrorSnack(getString(R.string.main_update_fail), getString(R.string.main_snack_retry), Snackbar.SnackbarDuration.LENGTH_INDEFINITE, LOAD_ERROR);
-                }
-            });
+               @Override
+               public void failure(RetrofitError error) {
+                   Log.e(Constants.TAG, error.toString());
+                   loading.setVisibility(View.GONE);
+                   swipeRefreshLayout.setRefreshing(false);
+                   mainListImage.setVisibility(View.VISIBLE);
+                   //show a snack error
+                   showErrorSnack(getString(R.string.main_update_fail), getString(R.string.main_snack_retry), Snackbar.SnackbarDuration.LENGTH_INDEFINITE, LOAD_ERROR);
+               }
+           });
         }else{
             mainListImage.setVisibility(View.VISIBLE);
             swipeRefreshLayout.setRefreshing(false);
