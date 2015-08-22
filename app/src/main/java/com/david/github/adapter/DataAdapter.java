@@ -24,7 +24,6 @@ import com.david.github.utils.Constants;
 import com.fmsirvent.ParallaxEverywhere.PEWImageView;
 import com.github.florent37.glidepalette.GlidePalette;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,7 +32,6 @@ import java.util.List;
 public class DataAdapter extends BaseAdapter {
 
     private List<Photo> items;
-    private List<Photo> arraylist;
     private LayoutInflater inflater;
     private Context mContext;
     private MainActivity mainActivity;
@@ -42,8 +40,6 @@ public class DataAdapter extends BaseAdapter {
         this.mContext = mContext;
         this.items = items;
         inflater = LayoutInflater.from(this.mContext);
-        this.arraylist = new ArrayList<Photo>();
-        this.arraylist.addAll(items);
         this.mainActivity = mainActivity;
     }
 
@@ -82,6 +78,7 @@ public class DataAdapter extends BaseAdapter {
             holder = (ViewHolder) convertView.getTag();
         }
 
+        //loads main image
         Glide.with(mContext)
                 .load(items.get(position).imageUrl)
                 .centerCrop()
@@ -100,7 +97,7 @@ public class DataAdapter extends BaseAdapter {
                 .crossFade()
                 .into(holder.dataImage);
 
-
+        //loads user avatar
         Glide.with(mContext)
                 .load(items.get(position).user.avatars.large.https)
                 .transform(new CircleTransform(mContext))
