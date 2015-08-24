@@ -2,10 +2,12 @@ package com.david.github.adapter;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.util.Pair;
-import android.support.v7.graphics.Palette;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,16 +16,22 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.bumptech.glide.Glide;
 import com.david.github.R;
 import com.david.github.activity.DataViewerActivity;
 import com.david.github.activity.MainActivity;
 import com.david.github.models.Photo;
-import com.david.github.utils.CircleTransform;
 import com.david.github.utils.Constants;
-import com.fmsirvent.ParallaxEverywhere.PEWImageView;
-import com.github.florent37.glidepalette.GlidePalette;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.StatusLine;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -69,7 +77,7 @@ public class DataAdapter extends BaseAdapter {
             holder.dataUsername = (TextView) convertView.findViewById(R.id.data_user_name);
             holder.dataRating = (TextView) convertView.findViewById(R.id.data_rating);
             holder.dataDesc = (TextView) convertView.findViewById(R.id.data_desc);
-            holder.dataImage = (PEWImageView) convertView.findViewById(R.id.data_image);
+            holder.dataImage = (ImageView) convertView.findViewById(R.id.data_image);
             holder.dataImageUser = (ImageView) convertView.findViewById(R.id.data_image_user);
             holder.userInfoHolder = (LinearLayout) convertView.findViewById(R.id.user_info_holder);
 
@@ -78,42 +86,12 @@ public class DataAdapter extends BaseAdapter {
             holder = (ViewHolder) convertView.getTag();
         }
 
-        //loads main image
-        Glide.with(mContext)
-                .load(items.get(position).imageUrl)
-                .centerCrop()
-                .listener(GlidePalette.with(items.get(position).imageUrl)
-                        .use(GlidePalette.Profile.VIBRANT)
-                        .intoBackground(holder.dataRating, GlidePalette.Swatch.RGB)
-                        .intoTextColor(holder.dataRating, GlidePalette.Swatch.BODY_TEXT_COLOR)
-                        .use(GlidePalette.Profile.MUTED)
-                        .intoBackground(holder.dataImage)
-                        .intoCallBack(new GlidePalette.CallBack() {
-                            @Override
-                            public void onPaletteLoaded(Palette palette) {
-                                //maybe?
-                            }
-                        }))
-                .crossFade()
-                .into(holder.dataImage);
-
-        //loads user avatar
-        Glide.with(mContext)
-                .load(items.get(position).user.avatars.large.https)
-                .transform(new CircleTransform(mContext))
-                .listener(GlidePalette.with(items.get(position).user.avatars.large.https)
-                        .use(GlidePalette.Profile.MUTED)
-                        .intoBackground(holder.userInfoHolder, GlidePalette.Swatch.RGB)
-                        .intoTextColor(holder.dataName, GlidePalette.Swatch.BODY_TEXT_COLOR)
-                        .intoTextColor(holder.dataUsername, GlidePalette.Swatch.BODY_TEXT_COLOR)
-                        .intoTextColor(holder.dataDesc, GlidePalette.Swatch.BODY_TEXT_COLOR)
-                        .intoCallBack(new GlidePalette.CallBack() {
-                            @Override
-                            public void onPaletteLoaded(Palette palette) {
-                                //maybe?
-                            }
-                        }))
-                .crossFade().into(holder.dataImageUser);
+        try {
+            holder.dataImage.setImageBitmap(downloadBitmap(items.get(position).imageUrl));
+            holder.dataImageUser.setImageBitmap(downloadBitmap(items.get(position).user.avatars.large.https));
+        }catch (Exception e){
+            Log.e("error", e.toString());
+        }
 
         holder.dataName.setText(items.get(position).name);
         holder.dataUsername.setText(items.get(position).user.username);
@@ -158,7 +136,27 @@ public class DataAdapter extends BaseAdapter {
         TextView dataUsername;
         TextView dataRating;
         TextView dataDesc;
-        PEWImageView dataImage;
+        ImageView dataImage;
         ImageView dataImageUser;
+    }
+
+    private Bitmap downloadBitmap(String url) throws IOException {
+        HttpUriRequest request = new HttpGet(url.toString());
+        HttpClient httpClient = new DefaultHttpClient();
+        HttpResponse response = httpClient.execute(request);
+
+        StatusLine statusLine = response.getStatusLine();
+        int statusCode = statusLine.getStatusCode();
+        if (statusCode == 200) {
+            HttpEntity entity = response.getEntity();
+            byte[] bytes = EntityUtils.toByteArray(entity);
+
+            Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0,
+                    bytes.length);
+            return bitmap;
+        } else {
+            throw new IOException("Download failed, HTTP response code "
+                    + statusCode + " - " + statusLine.getReasonPhrase());
+        }
     }
 }
